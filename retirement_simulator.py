@@ -27,7 +27,7 @@
     
     NOTE 2: This simulation assumes you are single and have no kids for your 
     entire life. This obviously is quite an assumption, and 
-    thus won't suite everyone, but I still think this simulation is a good
+    thus won't suit everyone, but I still think this simulation is a good
     benchmark and has pedagogical value even if you plan on having a family.
     
 """
@@ -71,7 +71,10 @@ cost_of_living = 40000
 
 """
  Assume cost of living increases each year.
- US Fed Reserve keeps inflation around 2.5% on avearage. Let's say 3% to be conservative
+ In modern times, the average yearly rate set by the US Fed. Reserve
+ has mostly been less than 3%.
+ ref: https://www.minneapolisfed.org/community/financial-and-economic-education/cpi-calculator-information/consumer-price-index-and-inflation-rates-1913
+ Let's say 3% to be conservative though.
 """
 inflation = 0.03
 
