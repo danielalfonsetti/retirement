@@ -2,10 +2,10 @@ import pandas as pd
 
 """
  Total wealth represents how much money you have in investments.
- Starting out with 20K in school debt.
+ Put in negative numbers if you are starting with debt.
 """
 
-total_wealth = -20000
+total_wealth = 0
 
 """
   Assume a 10% yearly return from our invested total wealth. Reasonable. As a reference,
