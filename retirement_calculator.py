@@ -1,4 +1,34 @@
+"""
+    Daniel Alfonsetti, daniel.alfonsetti@gmail.com, July 6, 2019
+    ------------------------------------------------------------
+    
+    This is a short script to get a sense of help much money one needs
+    to save in order to have your investments pay for your cost of living 
+    ('retire'). While working, it assumes that you are saving all money
+    that you make after you pay your cost of living and your taxes. 
+    During retirement, it assumes that your only source of income is however 
+    much you withdraw from your investments.
+    
+    Cost of living is adjusted with inflation.
+    
+    Personally, I am using this in the context of college graduates in
+    technical discplines as it assumes a fairly high starting salary
+    but, it also doesn't make any assumptions about you becoming the
+    CEO of the next big bank, so I think it is a reasonable esimator.
+    
+    I encourage you to play with the parameters to fit your life.
+    
+    NOTE: The tax brackets are not being adjusted upperwards over time with
+    inflation like they would in real life.  Therefore, this simulation is 
+    likely being even more conservative than it should be since it is
+    simulating you paying more than you actually would in taxes.
+"""
+
 import pandas as pd
+
+################################################################################
+# Parameters
+################################################################################
 
 """
  Total wealth represents how much money you have in investments.
@@ -10,19 +40,20 @@ import pandas as pd
 total_wealth = -30000
 
 """
-  Assume a 10% yearly return from our invested total wealth. Reasonable. As a reference,
-  a fairly safe portfolio, the trinity portfolio is at 11.5%, but let's
-  be on the safe sid and assume 10% returns.
+  Assume a 10% yearly return from our invested total wealth. Reasonable. 
+  As a reference, a fairly safe portfolio, the trinity portfolio is at 11.5%, 
+  but let's  be on the safe sid and assume 10% returns.
   (Check out more about the trinity portfolio here: http://www.cambriainvestments.com/wp-content/uploads/2016/07/Trinity_DIGITAL_final.pdf)
   Then let's assume 1% in comission and fees. 
   This gets us to 0.09 annulaized returns (not inflation adjusted)
 """
-rate_of_return = 0.09 
+rate_of_return = 0.09
 
 """
  MIT living wage calculator estimates $27942 is the required amount of money
- to live in New York City as a single adult in 2019. Lets take on 40000 to be conservative though.
- This is approximately the stipend for graduate students at Columbia. If they can do it, we can do it.
+ to live in New York City as a single adult in 2019. Lets take on 40000 to be 
+ conservative though. This is approximately the stipend for graduate students 
+ at Columbia. If they can do it, we can do it.
  ref: https://gsas.columbia.edu/student-guide/financing-your-education/stipend-and-salary-payments
  ref: http://livingwage.mit.edu/metros/35620
 """
@@ -34,24 +65,28 @@ cost_of_living = 40000
 """
 inflation = 0.03
 
-"""Starting salary for someone with a masters degree in CS is around 93K in 2017
-ref: https://www.naceweb.org/job-market/compensation/computer-science-class-of-2017s-top-paid-masters-grads/
-In metro areas like NYC, probably a bit higher and closer to 100k, but let's be conservative 
+"""
+  Starting salary for someone with a masters degree in CS is around 93K in 2017
+  ref: https://www.naceweb.org/job-market/compensation/computer-science-class-of-2017s-top-paid-masters-grads/
+  In metro areas like NYC, its probably a bit higher and closer to 100k, 
+  but let's say 93K anyways.
 """
 wage = 93000
 
 """
- Average workers get a bump of ~2.7%. Best workers get bumps of around ~4.7%. 
+ Average workers get a bump of ~2.7% in salary per year.
+ Best workers get bumps of around ~4.7%. 
  ref: https://www.investopedia.com/articles/personal-finance/090415/salary-secrets-what-considered-big-raise.asp
- Even though I'm sure your an amazing worker, let's assume a bump of 2.7% to be conservative.
+ Even though I'm sure your an amazing worker, let's assume a bump of 
+ 2.7% to be conservative.
 """
-yearly_raise = 0.027 
+yearly_raise = 0.027
 
 
 """
  Rate at which you with draw from your total wealth in retirement
- At four percent withdrawl, you are still netting rate_of_return-withdrawl_rate every
- year in retirement, and thus your wealth is still growing.
+ At four percent withdrawl, you are still netting rate_of_return-withdrawl_rate
+ every year in retirement, and thus your wealth is still growing.
  ref: https://www.investopedia.com/terms/f/four-percent-rule.asp
 """
 withdrawl_rate = 0.04
@@ -63,7 +98,7 @@ withdrawl_rate = 0.04
  but it is at 48/49 If other parameters were not so conservative, it is possible to do it though.
 """
 start_working_age = 23
-retirement_age = 49
+retirement_age = 48
 death_age = 100 # Doesn't really matter. This simulation isn't trying to use all our wealth by death anyways.
 
 ################################################################################
@@ -108,9 +143,17 @@ lifetime = []
 for i in range(start_working_age, retirement_age):
 
     
+  withdrawl_pre = total_wealth*withdrawl_rate
+  withdrawl_post = withdrawl_pre - calculate_longterm_capital_gains(withdrawl_pre)
+    
   lifetime.append({'Age': i, 'Total Wealth': total_wealth,
-                   "Wage": wage, "Cost of Living": cost_of_living,
-                   "Portfolio Returns": total_wealth*rate_of_return})
+                   "Wage": wage, 
+                   "Withdrawl (post tax)": None, 
+                   "Cost of Living": cost_of_living,
+                   "Portfolio Returns": total_wealth*rate_of_return, 
+                   "Surplus": None,
+                   "Theoretical Withdrawl (post tax)": withdrawl_post,
+                   'Theoretical Surplus': withdrawl_post - cost_of_living})
     
     
   # The amount we save each year is our total wage from our job + our earnings from our portfolio - taxes and cost of living
@@ -131,29 +174,40 @@ for i in range(retirement_age, death_age):
     withdrawl_post = withdrawl_pre - calculate_longterm_capital_gains(withdrawl_pre)
     
     lifetime.append({'Age': i, 'Total Wealth': total_wealth,
-                     "Withdrawl (pre tax)": withdrawl_pre, "Withdrawl (post tax)": withdrawl_post, 
+                     "Wage": None,
+                     "Withdrawl (post tax)": withdrawl_post, 
                      "Cost of Living": cost_of_living,
                      "Portfolio Returns": total_wealth*rate_of_return,
-                     "Surplus": withdrawl_post - cost_of_living})
+                     "Surplus": withdrawl_post - cost_of_living,
+                     "Theoretical Withdrawl (post tax)": None,
+                     'Theoretical Surplus': None})
     
        
     cost_of_living += cost_of_living*inflation
     total_wealth += total_wealth*rate_of_return-withdrawl_pre
 
 summaryDf = pd.DataFrame(lifetime)
-summaryDf = summaryDf[['Age', 'Total Wealth',  "Portfolio Returns", "Wage", "Cost of Living", 'Withdrawl (pre tax)', 'Withdrawl (post tax)', 'Surplus']]
+summaryDf = summaryDf[['Age', 'Total Wealth',  "Portfolio Returns", "Wage", "Cost of Living", 
+                       'Withdrawl (post tax)', 'Surplus',
+                       "Theoretical Withdrawl (post tax)", 'Theoretical Surplus']]
 
 """
 CONCLUSION:
     
-    Under conservative assumptions about your future income, cost of living, rates of returns,
-    inflation, and taxes, it is possible to retire by 48/49 when you graduate with a decently paying STEM 
-    or other white collar job in a city and assume average levels of pay raises. By 'retire', we mean withdraw at a safe level
-    from your investments such that it completely covers the cost of living while simultaneously still growing
+    Under conservative assumptions about your future income, cost of living,
+    rates of returns, inflation, and taxes, it is possible to retire by 48/49 
+    when you graduate with a decently paying STEM or other white collar job 
+    in a city and assume average levels of pay raises. By 'retire', we mean 
+    withdraw at a safe level from your investments such that it completely 
+    covers the cost of living while simultaneously still growing
     your net worth.
     
-    NOTE: The tax brackets are not being adjusted upperwards over time with inflation like they would in real life. 
-    Therefore, this simulation is likely being even more conservative than it should be since it is simulating you paying more 
-    than you actually would in taxes.
+    If some assumptions were relaxed retiring at 40 is much more tangible.
+    
+    For example, keeping all other default parameter values constant, 
+    it is possible to retire  at 41/42 by focusing on your income  and having 
+    a starting salary of 100K rather than 93K and performing well enough to get 
+    raises of 4.7% per year on average. Also, this simulation doesn't include
+    bonuses or side hussles.
 """
 
