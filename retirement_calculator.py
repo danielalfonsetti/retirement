@@ -5,7 +5,7 @@ import pandas as pd
  Put in negative numbers if you are starting with debt.
 """
 
-total_wealth = 0
+total_wealth = -20000
 
 """
   Assume a 10% yearly return from our invested total wealth. Reasonable. As a reference,
@@ -144,7 +144,7 @@ summaryDf = summaryDf[['Age', 'Total Wealth',  "Portfolio Returns", "Wage", "Cos
 """
 CONCLUSION:
     
-    Under fairly conservative assumptions about your future future income, cost of living, rates of returns,
+    Under fairly conservative assumptions about your future income, cost of living, rates of returns,
     inflation, and taxes, it is still possible to retire by 47/48 when you graduate with a decently paying STEM oriented job
     in a city and assume average levels of pay raises. By 'retire', we mean withdraw at a safe level
     from your investments such that it completely covers the cost of living while simultaneously still growing
