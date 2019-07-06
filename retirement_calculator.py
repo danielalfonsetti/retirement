@@ -146,9 +146,9 @@ summaryDf = summaryDf[['Age', 'Total Wealth',  "Portfolio Returns", "Wage", "Cos
 """
 CONCLUSION:
     
-    Under fairly conservative assumptions about your future income, cost of living, rates of returns,
-    inflation, and taxes, it is still possible to retire by 48/49 when you graduate with a decently paying STEM oriented job
-    in a city and assume average levels of pay raises. By 'retire', we mean withdraw at a safe level
+    Under conservative assumptions about your future income, cost of living, rates of returns,
+    inflation, and taxes, it is possible to retire by 48/49 when you graduate with a decently paying STEM 
+    or other white collar job in a city and assume average levels of pay raises. By 'retire', we mean withdraw at a safe level
     from your investments such that it completely covers the cost of living while simultaneously still growing
     your net worth.
     
