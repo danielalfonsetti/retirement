@@ -3,9 +3,11 @@ import pandas as pd
 """
  Total wealth represents how much money you have in investments.
  Put in negative numbers if you are starting with debt.
+ Average student debt is ~$30000.
+ ref: https://studentloanhero.com/student-loan-debt-statistics/
 """
 
-total_wealth = -20000
+total_wealth = -30000
 
 """
   Assume a 10% yearly return from our invested total wealth. Reasonable. As a reference,
@@ -58,10 +60,10 @@ withdrawl_rate = 0.04
  Our goal is to retire by 40, starting work at age 23 after we get a masters in CS.
  This means  we want our post tax withdrawl to cover the cost of living when we retire.
  Given how we set the other parameters, it is not possible to do so at 40,
- but it is at 47/48. If other parameters were not so conservative, it is possible to do it though.
+ but it is at 48/49 If other parameters were not so conservative, it is possible to do it though.
 """
 start_working_age = 23
-retirement_age = 48
+retirement_age = 49
 death_age = 100 # Doesn't really matter. This simulation isn't trying to use all our wealth by death anyways.
 
 ################################################################################
@@ -145,7 +147,7 @@ summaryDf = summaryDf[['Age', 'Total Wealth',  "Portfolio Returns", "Wage", "Cos
 CONCLUSION:
     
     Under fairly conservative assumptions about your future income, cost of living, rates of returns,
-    inflation, and taxes, it is still possible to retire by 47/48 when you graduate with a decently paying STEM oriented job
+    inflation, and taxes, it is still possible to retire by 48/49 when you graduate with a decently paying STEM oriented job
     in a city and assume average levels of pay raises. By 'retire', we mean withdraw at a safe level
     from your investments such that it completely covers the cost of living while simultaneously still growing
     your net worth.
