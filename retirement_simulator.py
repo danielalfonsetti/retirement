@@ -15,12 +15,7 @@
     of the default parameter values I use are fairly conservative, but I think
     this is warranted since often things in life don't go as planned. 
     
-    NOTE 1: The tax brackets are not being adjusted upperwards over time with
-    inflation like they would in real life.  Therefore, this simulation is 
-    likely being even more conservative than it should be since it is
-    simulating you paying more than you actually would in taxes.
-    
-    NOTE 2: This simulation assumes you are single and have no kids for your 
+    NOTE 1: This simulation assumes you are single and have no kids for your 
     entire life. This obviously is quite an assumption, and 
     thus won't suit everyone, but I still think this simulation is a good
     benchmark and has pedagogical value even if you plan on having a family.
