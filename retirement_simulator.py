@@ -15,7 +15,6 @@
     of the default parameter values I use are fairly conservative, but I think
     this is warranted since often things in life don't go as planned.
 
-
     If you like this, check out https://www.reddit.com/r/financialindependence/
     and the "FIRE" movement (Financial independent, retire early)
 
