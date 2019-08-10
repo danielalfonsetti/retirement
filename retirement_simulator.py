@@ -15,9 +15,11 @@
     of the default parameter values I use are fairly conservative, but I think
     this is warranted since often things in life don't go as planned.
 
+
     If you like this, check out https://www.reddit.com/r/financialindependence/
     and the "FIRE" movement (Financial independent, retire early)
 
+    Please feel free to clone and make pull requests!
 
     Note: Average cost of college varies a lot. You should look here
     (https://www.valuepenguin.com/student-loans/average-cost-of-college)
