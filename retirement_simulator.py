@@ -1,5 +1,5 @@
 """
-    Daniel Alfonsetti, daniel.alfonsetti@gmail.com, August 4, 2019
+    Daniel Alfonsetti, daniel.alfonsetti@gmail.com, August 10, 2019
     ------------------------------------------------------------
 
     Born out of my desire to retire at 40, this is a short script to get a
