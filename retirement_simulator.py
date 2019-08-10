@@ -15,24 +15,103 @@
     of the default parameter values I use are fairly conservative, but I think
     this is warranted since often things in life don't go as planned. 
     
-    NOTE 1: This simulation assumes you are single and have no kids for your 
-    entire life. This obviously is quite an assumption, and 
-    thus won't suit everyone, but I still think this simulation is a good
-    benchmark and has pedagogical value even if you plan on having a family.
+    If you like this, check out https://www.reddit.com/r/financialindependence/
+    and the "FIRE" movement (Financial independent, retire early)
     
-"""
+    
+    Note: Average cost of college varies a lot. You should look here 
+    (https://www.valuepenguin.com/student-loans/average-cost-of-college)
+    to figure out what the price of college for your kids would be.
+ """
 
+# TODO: Add ability to adjust certain parameters during certain years.
+# TODO: Add randomness/monte carlo aspects
+# TODO: Add 'surplus' in todays dollars.
+ 
 import pandas as pd
+import math
+import copy 
+
+############################
+# Helper functions
+def Dprint(text, display=False): # For debugging
+    if display:
+        print(text)
+        
 def place_value(number): 
     return ("{:,}".format(number)) 
+############################
+    
 
+class Event():
+    
+    def __init__(self, start_age, net_flow = 0, end_age = math.inf, duration = None):
+        
+        self.start_age = start_age
+        if duration:
+            self.end_age = start_age + duration
+        else:
+            self.end_age = end_age
+            
+        self.active = False
+        self.net_flow = net_flow
 
+    def update(self, simulation_obj):
+        
+        if self.start_age <= simulation_obj.age < self.end_age:
+            self.active = True
+        else:
+            self.active = False
+    
+    
+class Kid(Event):
+    
+    def __init__(self, start_age, college = True):
+        super().__init__(start_age)
+        
+        self.kid_age = 0
+        self.college = college
+        
+        
+    def update(self, simulation_obj):
+        super().update(simulation_obj)
+        
+        if self.active:
+            if self.kid_age < 18:
+                self.net_flow = -simulation_obj.child_costs
+            elif self.kid_age < 22 and self.college:
+                self.net_flow = -simulation_obj.college_price
+            else:
+                self.net_flow = 0
+                 # TODO: Your child could potentially give back.
+                 # Run simlution for the child to estimate how much they will give back????
+                 # Simulate child getting a disease (???)
+                        
+            self.kid_age += 1
+            
+            
+class Disease(Event):
+    pass
+    
+class Marriage(Event):
+    pass
+
+class Divorce(Event):
+    pass
+            
+    
 class retirementSimulator():
+    
+ 
+    
+    # TODO: Would storing these things in a dictionary help?
     def __init__(self, starting_wealth = -30000, rate_of_return = 0.07,
              cost_of_living = 40000, inflation = 0.03,
              wage = 80000, yearly_raise = 0.027,
-             withdrawl_rate = 0.04, start_working_age = 23,
-             target_retirement_age = 64, work_till_at_least = 35, death_age = 100):
+             withdrawl_rate = 0.04, start_working_age = 22,
+             target_retirement_age = 64, work_till_at_least = 35, death_age = 100,
+             child_costs = 10000, college_price = 40000,
+             events = [Kid(27)]):
         
         """
          Total wealth represents how much money you have in investments.
@@ -67,7 +146,12 @@ class retirementSimulator():
         """
         self.cost_of_living = cost_of_living 
         self.cost_of_living_save = cost_of_living 
-
+        
+        self.child_costs = child_costs
+        self.child_costs_save = child_costs
+        
+        self.college_price = college_price
+        self.college_price_save = college_price
         
         """
          Assume cost of living increases each year.
@@ -119,6 +203,7 @@ class retirementSimulator():
         """
         self.start_working_age = start_working_age
         self.start_working_age_save = start_working_age
+        
         self.target_retirement_age = target_retirement_age
         self.target_retirement_age_save = target_retirement_age
         
@@ -128,11 +213,33 @@ class retirementSimulator():
         self.death_age = death_age # Doesn't really matter. This simulation isn't trying to use all our wealth by death anyways.
         self.death_age_save = death_age 
         
+        
+        # Programming note: you need to make a copy of events each time you make a new retirementSimulator object
+        # because, in python, the default parameters are evaluted in the function header before
+        # it ever gets called. If you don't make a copy, the same event object in the default list
+        # would be shared among multiple retirementSimulator instances.
+        self.events = copy.deepcopy(events)
+        self.events_save = copy.deepcopy(events)
+        
         # Storage container
         self.summaryDf = None
+        
+        self.age = start_working_age
     ################################################################################
     ################################################################################
-    # Helper functions 
+        
+    def update_events(self):
+        for event in self.events:
+            event.update(self)
+    
+    def total_events_net_flow(self):
+        total_net_flow = 0
+        for event in self.events:
+            if event.active:
+                total_net_flow += event.net_flow
+        return total_net_flow
+        
+        
     def calculate_longterm_cap_gains_tax(self, amnt_to_sell, yrs_since_base):
         tax = 0
         # Base year: 2019
@@ -175,13 +282,18 @@ class retirementSimulator():
         return tax
     
     def run_simulation(self):
+        
+        lifetime = []
+
         ################
         # Working years
-        ################
+        ###############
         
-        lifetime = [] 
+        # TODO: Separate retirement and working years into separate events maybe
         for i in range(self.start_working_age, self.target_retirement_age):
-
+            
+          self.update_events()      
+          self.total_wealth += self.total_events_net_flow()
             
           withdrawl_pre = self.total_wealth*self.withdrawl_rate
           withdrawl_post = withdrawl_pre - self.calculate_longterm_cap_gains_tax(withdrawl_pre, yrs_since_base = i - self.start_working_age)    
@@ -191,8 +303,11 @@ class retirementSimulator():
                            "Cost of Living": self.cost_of_living,
                            "Portfolio Returns": self.total_wealth*self.rate_of_return, 
                            "Surplus": None,
+                           "Surplus (Present $)": None,
                            "Theoretical Withdrawl (post tax)": withdrawl_post,
-                           'Theoretical Surplus': withdrawl_post - self.cost_of_living})
+                           'Theoretical Surplus': withdrawl_post - self.cost_of_living,
+                           'Theoretical Surplus (Present $)': (withdrawl_post - self.cost_of_living)/(1+self.inflation)**(i - self.start_working_age) # PDV calculation
+                           })
             
             
           state_tax = self.calculate_state_tax()
@@ -203,10 +318,16 @@ class retirementSimulator():
           # minus the amount we pay in taxes and the current cost of living
           self.total_wealth += (self.wage -state_tax- federal_tax - self.cost_of_living)+self.total_wealth*self.rate_of_return
          
-          # Cost of living increases each year
+          # Costs increase each year
           self.cost_of_living += self.cost_of_living*self.inflation
+          self.child_costs += self.child_costs*self.inflation
+          self.college_price += self.college_price*self.inflation
+
           # Wage increases each year
           self.wage *= (self.yearly_raise+1)
+          
+          self.age += 1
+
           
         ################
         # Retirement years
@@ -214,6 +335,8 @@ class retirementSimulator():
           
         for i in range(self.target_retirement_age, self.death_age+1):
             
+            self.update_events()      
+            self.total_wealth += self.total_events_net_flow()
             
             withdrawl_pre = self.total_wealth*self.withdrawl_rate
             withdrawl_post = withdrawl_pre - self.calculate_longterm_cap_gains_tax(withdrawl_pre, yrs_since_base = i - self.start_working_age)
@@ -224,19 +347,33 @@ class retirementSimulator():
                              "Cost of Living": self.cost_of_living,
                              "Portfolio Returns": self.total_wealth*self.rate_of_return,
                              "Surplus": withdrawl_post - self.cost_of_living,
+                             "Surplus (Present $)":  (withdrawl_post - self.cost_of_living)/(1+self.inflation)**(i - self.start_working_age),         
                              "Theoretical Withdrawl (post tax)": None,
-                             'Theoretical Surplus': None})
+                             'Theoretical Surplus': None,
+                             'Theoretical Surplus (Present $)': None
+                            })
             
-            # Cost of living increases each year
+            
+            # Costs increase each year
             self.cost_of_living += self.cost_of_living*self.inflation
+            self.child_costs += self.child_costs*self.inflation
+            self.college_price += self.college_price*self.inflation
+            
+            
         
             self.total_wealth += self.total_wealth*self.rate_of_return-withdrawl_pre
+            
+            self.age += 1
+
         
         self.summaryDf = pd.DataFrame(lifetime)
         self.summaryDf = self.summaryDf[['Age', 'Total Wealth',  "Portfolio Returns", "Wage", "Cost of Living", 
-                               'Withdrawl (post tax)', 'Surplus',
-                               "Theoretical Withdrawl (post tax)", 'Theoretical Surplus']]
+                               'Withdrawl (post tax)', 'Surplus',"Surplus (Present $)",
+                               "Theoretical Withdrawl (post tax)", 'Theoretical Surplus', 'Theoretical Surplus (Present $)']]
         
+        
+        
+    
     def get_earliest_retirement(self):
         """
             Gets earliest age in which a 4% withdrawl covers cost of living 
@@ -259,7 +396,10 @@ class retirementSimulator():
                                                     cost_of_living = self.cost_of_living_save, inflation = self.inflation_save, 
                                                     wage = self.wage_save, yearly_raise = self.yearly_raise_save, 
                                                     withdrawl_rate = self.withdrawl_rate_save, start_working_age = self.start_working_age_save,
-                                                    target_retirement_age = int(best_age), work_till_at_least = self.work_till_at_least_save,  death_age = self.death_age_save)
+                                                    target_retirement_age = int(best_age), work_till_at_least = self.work_till_at_least_save,  death_age = self.death_age_save,
+                                                    child_costs = self.child_costs_save, college_price = self.college_price_save,
+                                                    events = self.events_save) 
+
                 newSimulation.run_simulation()
                 new_vec =(newSimulation.summaryDf['Withdrawl (post tax)'] > newSimulation.summaryDf['Cost of Living']) | (newSimulation.summaryDf['Theoretical Withdrawl (post tax)'] > newSimulation.summaryDf['Cost of Living'])
                 runs_out =  int(newSimulation.summaryDf[new_vec].iloc[-1]['Age'])
@@ -286,27 +426,34 @@ class retirementSimulator():
                               "%, your total wealth will support you till your death at age ", self.death_age_save, \
                               ", but you should note that you will have $", place_value(delta_TW_retirement), " less than you started with ($",place_value(starting_retirement_wealth)," decreased to $",place_value(ending_retirement_wealth),")!", sep="")       
             else:
-                print("You will not be able to retire ever! =(")
+                print("You will not ever be able to meet your retirement goals! =(")
+                print("Consider adjusting parameters until you have a reasonable goal.")
                 
                 
         else:
             print("Please run a simulation first!")
         print("\n")
         
+        
+
+# %%
 if __name__ == "__main__":
     
-    # Defaults
-    sim1 = retirementSimulator()
+    
+    # Default. Start working at 22, have kid at 27.
+    # Other parameters are fairly pessimistic.
+    sim1 = retirementSimulator(events =[Kid(27)])
     sim1.run_simulation()
     sim1_results = sim1.summaryDf
     sim1.get_earliest_retirement()
     
-    # Start working after a master's degree at 23.
+    # Start working after a master's degree at 23, have kid at 27.
     sim2 = retirementSimulator(starting_wealth = -30000, rate_of_return = 0.10,
                  cost_of_living = 40000, inflation = 0.03,
                  wage = 90000, yearly_raise = 0.04,
                  withdrawl_rate = 0.04, start_working_age = 23,
-                 target_retirement_age = 50, work_till_at_least = None, death_age = 100)
+                 target_retirement_age = 50, work_till_at_least = 30, death_age = 100, 
+                 events = [Kid(27)])
     sim2.run_simulation()
     sim2_results = sim2.summaryDf
     sim2.get_earliest_retirement()
@@ -320,6 +467,37 @@ if __name__ == "__main__":
     sim3.run_simulation()
     sim3_results = sim3.summaryDf
     sim3.get_earliest_retirement()
+    
+    # Higher starting wage, but without kids
+    sim4 = retirementSimulator(starting_wealth = -30000, rate_of_return = 0.10,
+             cost_of_living = 40000, inflation = 0.03,
+             wage = 130000, yearly_raise = 0.04,
+             withdrawl_rate = 0.04, start_working_age = 23,
+             target_retirement_age = 50, work_till_at_least = 30, death_age = 100, events=[])
+    sim4.run_simulation()
+    sim4_results = sim4.summaryDf
+    sim4.get_earliest_retirement()
 
+    # High starting salary after a PhD, with a kid at 27
+    sim5 = retirementSimulator(starting_wealth = -30000, rate_of_return = 0.10,
+             cost_of_living = 40000, inflation = 0.03,
+             wage = 185000, yearly_raise = 0.04,
+             withdrawl_rate = 0.04, start_working_age = 26,
+             target_retirement_age = 50, work_till_at_least = 30, death_age = 100, events=[Kid(27)])
+    sim5.run_simulation()
+    sim5_results = sim5.summaryDf
+    sim5.get_earliest_retirement()
+    
+
+    # High starting salary after a PhD, with a kid at 27, 28 and 29 (3 kids)
+    sim6 = retirementSimulator(starting_wealth = -30000, rate_of_return = 0.10,
+             cost_of_living = 40000, inflation = 0.03,
+             wage = 185000, yearly_raise = 0.04,
+             withdrawl_rate = 0.04, start_working_age = 26,
+             target_retirement_age = 50, work_till_at_least = 30, death_age = 100, events=[Kid(27), Kid(28), Kid(29)])
+    sim6.run_simulation()
+    sim6_results = sim6.summaryDf
+    sim6.get_earliest_retirement()
+    
     
 
