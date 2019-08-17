@@ -45,7 +45,7 @@ def place_value(number):
 
 class Event():
 
-    def __init__(self, start_age, net_flow = 0, end_age = math.inf, duration = None):
+    def __init__(self, start_age, end_age = math.inf, duration = None, net_flow = 0):
 
         self.start_age = start_age
         if duration:
@@ -54,22 +54,24 @@ class Event():
             self.end_age = end_age
 
         self.active = False
+        self.event_age = 0
         self.net_flow = net_flow
 
     def update(self, simulation_obj):
+
 
         if self.start_age <= simulation_obj.age < self.end_age:
             self.active = True
         else:
             self.active = False
 
+        self.event_age += 1
 
 class Kid(Event):
 
     def __init__(self, start_age, college = True):
         super().__init__(start_age)
 
-        self.kid_age = 0
         self.college = college
 
 
@@ -77,20 +79,85 @@ class Kid(Event):
         super().update(simulation_obj)
 
         if self.active:
-            if self.kid_age < 18:
+            if self.event_age < 18: # if kid is less than 18 years old...
                 self.net_flow = -simulation_obj.child_costs
-            elif self.kid_age < 22 and self.college:
+            elif self.event_age < 22 and self.college:
                 self.net_flow = -simulation_obj.college_price
             else:
                 self.net_flow = 0
+        else:
+            self.net_flow = 0
+            
                  # TODO: Your child could potentially give back.
                  # Run simlution for the child to estimate how much they will give back????
                  # Simulate child getting a disease (???)
 
-            self.kid_age += 1
+class Job(Event):
+    
+    def __init__(self, start_age, end_age, starting_wage, yearly_raise):
+        
+        super().__init__(start_age, end_age)
+        
+        self.wage = starting_wage
+        self.yearly_raise = yearly_raise
+        
+    def update(self, simulation_obj):
+        super().update(simulation_obj)
+        
+        if self.active:
+            
+            self.wage = (self.yearly_raise + 1)*self.wage
+            
+            state_tax = simulation_obj.calculate_state_income_tax(self.wage)
+            federal_tax = simulation_obj.calculate_federal_income_tax(self.wage)
+            
+            self.net_flow = self.wage - state_tax - federal_tax
+            
+        else:
+            self.net_flow = 0
+            
 
-
+class Withdraw(Event):
+    
+    def __init__(self, start_age, end_age, percent):
+        
+        self.percent = percent
+        super().__init__(start_age, end_age)
+        
+    def update(self, simulation_obj):
+        super().update(simulation_obj)
+        
+        if self.active:
+            
+            withdrawl = self.percent*simulation_obj.total_wealth
+            simulation_obj.total_wealth -= withdrawl
+            self.net_flow = withdrawl
+            
+        else:
+            self.net_flow = 0
+            
+        # either percent or amount
+        
+class Retirement(Withdraw):
+    
+    def __init__(self, start_age, percent, amount):
+        super().__init__(start_age, math.inf, percent, amount)
+        
+    def update(self, simulation_obj):
+        
+        super().update(simulation_obj)
+        
+        if self.active:
+            for event in simulation_obj.events:
+                if type(event) == Job:
+                    event.net_flow = 0
+        
 class Disease(Event):
+    pass
+
+
+
+class Vacation(Event):
     pass
 
 class Marriage(Event):
@@ -101,7 +168,6 @@ class Divorce(Event):
 
 
 class retirementSimulator():
-
 
 
     # TODO: Would storing these things in a dictionary help?
@@ -170,8 +236,7 @@ class retirementSimulator():
           In metro areas like NYC, its probably a bit higher and closer to 100k,
           but let's say 93K anyways.
         """
-        self.wage = wage
-        self.wage_save = wage
+
 
         """
          Average workers get a bump of ~2.7% in salary per year.
@@ -180,9 +245,6 @@ class retirementSimulator():
          Even though I'm sure your an amazing worker, let's assume a bump of
          2.7% to be conservative.
         """
-        self.yearly_raise = yearly_raise
-        self.yearly_raise_save = yearly_raise
-
 
         """
          Rate at which you with draw from your total wealth in retirement
@@ -225,6 +287,8 @@ class retirementSimulator():
         self.summaryDf = None
 
         self.age = start_working_age
+        self.yrs_since_base = 0
+        
     ################################################################################
     ################################################################################
 
@@ -240,7 +304,7 @@ class retirementSimulator():
         return total_net_flow
 
 
-    def calculate_longterm_cap_gains_tax(self, amnt_to_sell, yrs_since_base):
+    def calculate_longterm_cap_gains_tax(self, amnt_to_sell):
         tax = 0
         # Base year: 2019
         # 2019 rates: https://www.nerdwallet.com/blog/taxes/capital-gains-tax-rates/
@@ -249,7 +313,7 @@ class retirementSimulator():
                     (39376, 434550):        0.15,
                     (434551, float('inf')): 0.37}
 
-        adj_brackets = {(bracket[0]*((self.inflation+1)**yrs_since_base), bracket[1]*((self.inflation+1)**yrs_since_base)): rate \
+        adj_brackets = {(bracket[0]*((self.inflation+1)**self.yrs_since_base), bracket[1]*((self.inflation+1)**self.yrs_since_base)): rate \
                                         for bracket, rate in brackets.items()}
 
         for bracket in adj_brackets:
@@ -262,24 +326,25 @@ class retirementSimulator():
         return self.calculate_federal_tax(amnt_to_sell)
 
 
-    def calculate_state_tax(self):
+    def calculate_state_income_tax(self, wage):
         # Based on NY state tax. Includes NYC city tax
         # https://www.thebalance.com/cities-that-levy-income-taxes-3193246
-        return self.wage*0.10
+        return wage*0.10
 
-    def calculate_federal_tax(self, yrs_since_base):
+    def calculate_federal_income_tax(self, wage):
         tax = 0
         # Using 2019 single filer rates
         # https://taxfoundation.org/2019-tax-brackets/
         brackets = {(0,9700):0.1,(9700, 39475):0.12, (39475, 84200):0.22, (84200, 160725):0.24, (160725, 204100): 0.32, (204100, 510300):0.35, (510300, float('inf')):0.37}
 
-        adj_brackets = {(bracket[0]*((self.inflation+1)**yrs_since_base), bracket[1]*((self.inflation+1)**yrs_since_base)): rate \
+        adj_brackets = {(bracket[0]*((self.inflation+1)**self.yrs_since_base), bracket[1]*((self.inflation+1)**self.yrs_since_base)): rate \
                                         for bracket, rate in brackets.items()}
 
         for bracket in adj_brackets:
-            if self.wage > bracket[0]:
-                tax += adj_brackets[bracket]*(min(self.wage, bracket[1])-bracket[0])
+            if wage > bracket[0]:
+                tax += adj_brackets[bracket]*(min(wage, bracket[1])-bracket[0])
         return tax
+    
 
     def run_simulation(self):
 
@@ -289,18 +354,18 @@ class retirementSimulator():
         # Working years
         ###############
 
-        # TODO: Separate retirement and working years into separate events maybe
-        for i in range(self.start_working_age, self.target_retirement_age):
-
+        for i in range(self.start_working_age, self.death_age):
+            
           self.update_events()
-          self.total_wealth += self.total_events_net_flow()
+          year_net_flow = self.total_events_net_flow() - self.cost_of_living
+          self.total_wealth += year_net_flow
 
           withdrawl_pre = self.total_wealth*self.withdrawl_rate
-          withdrawl_post = withdrawl_pre - self.calculate_longterm_cap_gains_tax(withdrawl_pre, yrs_since_base = i - self.start_working_age)
+          withdrawl_post = withdrawl_pre - self.calculate_longterm_cap_gains_tax(withdrawl_pre)
+          
           lifetime.append({'Age': i, 'Total Wealth': self.total_wealth,
-                           "Wage": self.wage,
+                           "Year Net Flow": year_net_flow,
                            "Withdrawl (post tax)": None,
-                           "Cost of Living": self.cost_of_living,
                            "Portfolio Returns": self.total_wealth*self.rate_of_return,
                            "Surplus": None,
                            "Surplus (Present $)": None,
@@ -310,67 +375,59 @@ class retirementSimulator():
                            })
 
 
-          state_tax = self.calculate_state_tax()
-          federal_tax = self.calculate_federal_tax(yrs_since_base = i - self.start_working_age)
-
-
           # The amount we save each year is our total wage from our job + our earnings from our portfolio
           # minus the amount we pay in taxes and the current cost of living
-          self.total_wealth += (self.wage -state_tax- federal_tax - self.cost_of_living)+self.total_wealth*self.rate_of_return
 
           # Costs increase each year
           self.cost_of_living += self.cost_of_living*self.inflation
           self.child_costs += self.child_costs*self.inflation
           self.college_price += self.college_price*self.inflation
 
-          # Wage increases each year
-          self.wage *= (self.yearly_raise+1)
-
           self.age += 1
-
+          self.yrs_since_base += 1
 
         ################
         # Retirement years
         ################
 
-        for i in range(self.target_retirement_age, self.death_age+1):
-
-            self.update_events()
-            self.total_wealth += self.total_events_net_flow()
-
-            withdrawl_pre = self.total_wealth*self.withdrawl_rate
-            withdrawl_post = withdrawl_pre - self.calculate_longterm_cap_gains_tax(withdrawl_pre, yrs_since_base = i - self.start_working_age)
-
-            lifetime.append({'Age': i, 'Total Wealth': self.total_wealth,
-                             "Wage": None,
-                             "Withdrawl (post tax)": withdrawl_post,
-                             "Cost of Living": self.cost_of_living,
-                             "Portfolio Returns": self.total_wealth*self.rate_of_return,
-                             "Surplus": withdrawl_post - self.cost_of_living,
-                             "Surplus (Present $)":  (withdrawl_post - self.cost_of_living)/(1+self.inflation)**(i - self.start_working_age),
-                             "Theoretical Withdrawl (post tax)": None,
-                             'Theoretical Surplus': None,
-                             'Theoretical Surplus (Present $)': None
-                            })
-
-
-            # Costs increase each year
-            self.cost_of_living += self.cost_of_living*self.inflation
-            self.child_costs += self.child_costs*self.inflation
-            self.college_price += self.college_price*self.inflation
-
-
-
-            self.total_wealth += self.total_wealth*self.rate_of_return-withdrawl_pre
-
-            self.age += 1
+#        for i in range(self.target_retirement_age, self.death_age+1):
+#            
+#            self.update_events()
+#            year_net_flow = self.total_events_net_flow() - self.cost_of_living
+#            self.total_wealth += year_net_flow
+#
+#            withdrawl_pre = self.total_wealth*self.withdrawl_rate
+#            withdrawl_post = withdrawl_pre - self.calculate_longterm_cap_gains_tax(withdrawl_pre)
+#
+#            lifetime.append({'Age': i, 'Total Wealth': self.total_wealth,
+#                             "Year Net Flow": year_net_flow,
+#                             "Withdrawl (post tax)": withdrawl_post,
+#                             "Cost of Living": self.cost_of_living,
+#                             "Portfolio Returns": self.total_wealth*self.rate_of_return,
+#                             "Surplus": withdrawl_post - self.cost_of_living,
+#                             "Surplus (Present $)":  (withdrawl_post - self.cost_of_living)/(1+self.inflation)**(i - self.start_working_age),
+#                             "Theoretical Withdrawl (post tax)": None,
+#                             'Theoretical Surplus': None,
+#                             'Theoretical Surplus (Present $)': None
+#                            })
+#
+#
+#            # Costs increase each year
+#            self.cost_of_living += self.cost_of_living*self.inflation
+#            self.child_costs += self.child_costs*self.inflation
+#            self.college_price += self.college_price*self.inflation
+#
+#
+#            self.total_wealth += self.total_wealth*self.rate_of_return-withdrawl_pre
+#
+#            self.age += 1
+#            self.yrs_since_base += 1
 
 
         self.summaryDf = pd.DataFrame(lifetime)
-        self.summaryDf = self.summaryDf[['Age', 'Total Wealth',  "Portfolio Returns", "Wage", "Cost of Living",
+        self.summaryDf = self.summaryDf[['Age', 'Total Wealth',  "Portfolio Returns", "Year Net Flow", "Cost of Living",
                                'Withdrawl (post tax)', 'Surplus',"Surplus (Present $)",
                                "Theoretical Withdrawl (post tax)", 'Theoretical Surplus', 'Theoretical Surplus (Present $)']]
-
 
 
 
@@ -442,11 +499,12 @@ if __name__ == "__main__":
 
     # Default. Start working at 22, have kid at 27.
     # Other parameters are fairly pessimistic.
-    sim1 = retirementSimulator(events =[Kid(27)])
+    sim1 = retirementSimulator(events =[Job(22, 64, 100000, 0.04)])
     sim1.run_simulation()
     sim1_results = sim1.summaryDf
-    sim1.get_earliest_retirement()
+#    sim1.get_earliest_retirement()
 
+"""
     # Start working after a master's degree at 23, have kid at 27.
     sim2 = retirementSimulator(starting_wealth = -30000, rate_of_return = 0.10,
                  cost_of_living = 40000, inflation = 0.03,
@@ -498,3 +556,4 @@ if __name__ == "__main__":
     sim6.run_simulation()
     sim6_results = sim6.summaryDf
     sim6.get_earliest_retirement()
+"""
